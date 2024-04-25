@@ -1,0 +1,105 @@
+using Photon.Pun;
+using Photon.Pun.UtilityScripts;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class WizardShot : MonoBehaviour
+{
+    public float velocity = 5.0f;
+    public float duration = 5.0f;
+    private Vector3 launchAngle = Vector3.zero;
+
+    private SphereCollider collider;
+    private Rigidbody rb;
+    private PhotonView photonView;
+
+    private Game_Manager gameManager;
+    private Gem gem;
+    public GameObject myWiz;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        myWiz = GameObject.Find("Photon").GetComponent<ConnectAndJoinRandom>().MyWizard;
+        collider = GetComponent<SphereCollider>();
+        rb = GetComponent<Rigidbody>();
+        photonView = GetComponent<PhotonView>();
+
+        gameManager = GameObject.Find("GameManager").GetComponent<Game_Manager>();
+
+        rb.AddForce(launchAngle * velocity, ForceMode.VelocityChange);
+        if(photonView.IsMine)
+            StartCoroutine(DelayedDestroy(duration));
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.tag == "XR")
+        {
+            GameObject xrOrigin = GameObject.Find("XR Origin");
+
+            // Play particles at hit wizard position
+            PlayPlayerCollisionParticles(xrOrigin.transform.position, Quaternion.identity);
+
+            Wizard wizard = Wizard.GetMyWizard();
+            Debug.Log(wizard.transform.parent.name + " hit!");
+
+            bool isIce = false;
+
+            if (wizard.gameObject.transform.parent.name.Contains("Ice"))
+                isIce = true;
+
+            if(gameManager.gemHeld)
+            {
+                if (gem == null)
+                    gem = GameObject.FindGameObjectWithTag("Gem").GetComponent<Gem>();
+
+                if(gameManager.incIce == true) // Ice has it
+                {
+                    if(isIce == true)
+                    {
+                        // Drop the gem at ice
+                        gem.DropGemAtPosition(xrOrigin.transform.position + (Vector3.up * 2.0f), true);
+                        Debug.Log("Iceman is dropping");
+
+                    }
+                }
+
+                else // Fire has it
+                {
+                    if(isIce == false)
+                    {
+                        // Drop the gem at fire
+                        //gem.GetComponent<PhotonView>().RequestOwnership();
+                        gem.DropGemAtPosition(xrOrigin.transform.position + (Vector3.up * 2.0f), false);
+                        Debug.Log("Fireman is dropping");
+                    }
+                }
+            }
+
+            wizard.MoveToSpawn(isIce);
+            
+        }
+
+        if(photonView.IsMine)
+            PhotonNetwork.Destroy(this.gameObject);
+    }
+
+    public void SetLaunchParameters(Vector3 launchPoint, Vector3 launchRotation)
+    {
+        transform.position = launchPoint;
+        launchAngle = launchRotation;
+    }
+
+    IEnumerator DelayedDestroy(float delayTime)
+    {
+        yield return new WaitForSeconds(delayTime);
+        PhotonNetwork.Destroy(this.gameObject);
+    }
+
+    private void PlayPlayerCollisionParticles(Vector3 position, Quaternion rotation)
+    {
+        PhotonNetwork.Instantiate("DeathParticles", position, rotation);
+    }
+}

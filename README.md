@@ -1,2 +1,1 @@
-# GlobalGameJam2022-J-Squad
- 
+# Wizard Spell Duel by Sheharoze & Imran
